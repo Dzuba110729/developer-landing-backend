@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "Developer Landing Backend",
+    "description": "API для лендинга разработчика: форма обратной связи с AI-анализом, health-check, метрики.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "health"]
+        }
+      }
+    },
+    {
+      "name": "Metrics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/metrics",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "metrics"]
+        }
+      }
+    },
+    {
+      "name": "Contact — успешная заявка",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Иван Иванов\",\n  \"phone\": \"+7 999 123-45-67\",\n  \"email\": \"ivan@example.com\",\n  \"comment\": \"Хочу обсудить разработку лендинга для моего проекта, бюджет до 100 000 рублей.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/contact",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "contact"]
+        }
+      }
+    },
+    {
+      "name": "Contact — ошибка валидации (422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"A\",\n  \"phone\": \"123\",\n  \"email\": \"not-an-email\",\n  \"comment\": \"hi\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/contact",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "contact"]
+        }
+      }
+    },
+    {
+      "name": "Contact — недовольный клиент (негативная тональность)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Пётр Сидоров\",\n  \"phone\": \"+79161234567\",\n  \"email\": \"petr@example.com\",\n  \"comment\": \"Уже неделю жду ответа по моему проекту, это безобразие, верните деньги!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/contact",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "contact"]
+        }
+      }
+    },
+    {
+      "name": "Swagger UI",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/docs",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "docs"]
+        }
+      }
+    }
+  ]
+}

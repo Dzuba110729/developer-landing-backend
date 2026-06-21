@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: Developer Landing Backend API
+  description: |
+    Backend-сервис для лендинга-презентации разработчика: приём заявок с формы
+    обратной связи, AI-анализ комментариев (Anthropic Claude), email-уведомления,
+    статистика обращений.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Локальный сервер
+paths:
+  /api/health:
+    get:
+      summary: Статус сервиса
+      tags: [System]
+      responses:
+        '200':
+          description: Сервис работает
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                success: true
+                status: ok
+                app: "Developer Landing Backend"
+                env: local
+                timestamp: "2026-06-21T10:00:00+00:00"
+                checks:
+                  storage_writable: true
+                  ai_configured: true
+
+  /api/metrics:
+    get:
+      summary: Статистика обращений
+      description: Агрегированные данные из файлового хранилища (storage/app/data/stats.json).
+      tags: [System]
+      responses:
+        '200':
+          description: Текущая статистика
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+              example:
+                success: true
+                data:
+                  total_requests: 42
+                  mail_sent: 40
+                  mail_failed: 2
+                  ai_processed: 38
+                  ai_fallback: 4
+                  by_sentiment:
+                    positive: 20
+                    neutral: 15
+                    negative: 3
+                  by_date:
+                    "2026-06-21": 42
+                  last_request_at: "2026-06-21T10:00:00+00:00"
+
+  /api/contact:
+    post:
+      summary: Отправка заявки с формы обратной связи
+      description: |
+        Полный цикл: валидация → AI-анализ комментария (с graceful fallback,
+        если Anthropic API недоступен) → отправка письма владельцу сайта и
+        копии-подтверждения пользователю → сохранение заявки в файловый журнал.
+
+        Ограничено rate limiting (по умолчанию 5 запросов в минуту с одного IP,
+        настраивается через CONTACT_RATE_LIMIT_MAX_ATTEMPTS / CONTACT_RATE_LIMIT_DECAY_MINUTES).
+      tags: [Contact]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+            example:
+              name: "Иван Иванов"
+              phone: "+7 999 123-45-67"
+              email: "ivan@example.com"
+              comment: "Хочу обсудить разработку лендинга для моего проекта."
+      responses:
+        '201':
+          description: Заявка принята
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactResponse'
+              example:
+                success: true
+                message: "Заявка принята. Мы свяжемся с вами в ближайшее время."
+                data:
+                  mail_sent: true
+                  ai:
+                    used: true
+                    sentiment: positive
+                    category: cooperation
+        '422':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                success: false
+                message: "Ошибка валидации данных."
+                errors:
+                  email: ["Некорректный email."]
+        '429':
+          description: Превышен лимит запросов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "Слишком много запросов. Попробуйте позже."
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ContactRequest:
+      type: object
+      required: [name, phone, email, comment]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Иван Иванов"
+        phone:
+          type: string
+          example: "+7 999 123-45-67"
+        email:
+          type: string
+          format: email
+          example: "ivan@example.com"
+        comment:
+          type: string
+          minLength: 5
+          maxLength: 2000
+          example: "Хочу обсудить разработку лендинга."
+
+    ContactResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            mail_sent:
+              type: boolean
+            ai:
+              type: object
+              properties:
+                used:
+                  type: boolean
+                sentiment:
+                  type: string
+                  nullable: true
+                  enum: [positive, neutral, negative, null]
+                category:
+                  type: string
+                  nullable: true
+                  enum: [question, cooperation, order, complaint, other, null]
+
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+          enum: [ok, degraded]
+        app:
+          type: string
+        env:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          properties:
+            storage_writable:
+              type: boolean
+            ai_configured:
+              type: boolean
+
+    MetricsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            total_requests:
+              type: integer
+            mail_sent:
+              type: integer
+            mail_failed:
+              type: integer
+            ai_processed:
+              type: integer
+            ai_fallback:
+              type: integer
+            by_sentiment:
+              type: object
+              additionalProperties:
+                type: integer
+            by_date:
+              type: object
+              additionalProperties:
+                type: integer
+            last_request_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
